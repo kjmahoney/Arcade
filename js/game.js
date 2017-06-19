@@ -5,15 +5,46 @@ BasicGame.Game = function (game) {
 
 BasicGame.Game.prototype = {
 
+  preload: function () {
+    //skipped preload state for dev so we load the file here
+    this.load.image('sea', 'assets/sea.png');
+    this.load.image('bullet', 'assets/bullet.png');
+    this.load.spritesheet('enemy-zero', 'assets/enemy.png', 32, 32);
+    this.load.spritesheet('explosion', 'assets/explosion.png', 32, 32);
+  },
+
   create: function () {
 
     this.sea = this.add.tileSprite(0, 0, 800, 600, 'sea');
 
+    this.enemy = this.add.sprite(400, 200, 'enemy-zero');
+    this.enemy.animations.add('fly', [ 0, 1, 2 ], 20, true);
+    this.enemy.play('fly');
+    this.enemy.anchor.setTo(0.5,0.5);
+    //TODO is there a function that i can just make one big physics object? cluttery inline
+    this.physics.enable(this.enemy, Phaser.Physics.ARCADE);
+
+    this.bullet = this.add.sprite(400,300,'bullet');
+    this.bullet.anchor.setTo(0.5,0.5);
+    this.physics.enable(this.bullet, Phaser.Physics.ARCADE);
+    this.bullet.body.velocity.y = -500;
   },
 
   update: function () {
-    //  Honestly, just about anything could go here. It's YOUR game after all. Eat your heart out!
+    this.sea.tilePosition.y += .2;
+
+    this.physics.arcade.overlap(      this.bullet, this.enemy, this.enemyHit, null, this    );
+
+
+
   },
+
+  render: function() {
+    //uncomment when testing
+    // this.game.debug.body(this.bullet);
+    // this.game.debug.body(this.enemy);
+  },
+
 
   quitGame: function (pointer) {
 
@@ -22,7 +53,15 @@ BasicGame.Game.prototype = {
 
     //  Then let's go back to the main menu.
     this.state.start('MainMenu');
+  },
 
-  }
-
+  enemyHit: function (bullet, enemy) {
+    console.log('kev');
+    bullet.kill();
+    enemy.kill();
+    var explosion = this.add.sprite(enemy.x,enemy.y, 'explosion');
+    explosion.anchor.setTo(0.5, 0.5);
+    explosion.animations.add('boom');
+    explosion.play('boom', 15, false, true);
+  } ,
 };
