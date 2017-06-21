@@ -11,11 +11,18 @@ BasicGame.Game.prototype = {
     this.load.image('bullet', 'assets/bullet.png');
     this.load.spritesheet('enemy-zero', 'assets/enemy.png', 32, 32);
     this.load.spritesheet('explosion', 'assets/explosion.png', 32, 32);
+    this.load.spritesheet('player', 'assets/player.png', 64, 64);
   },
 
   create: function () {
-
     this.sea = this.add.tileSprite(0, 0, 800, 600, 'sea');
+
+    this.player = this.add.sprite(400, 550, 'player');
+    this.player.anchor.setTo(0.5, 0.5);
+    this.player.animations.add('fly', [0,1,2], 20, true);
+    this.player.play('fly');
+    this.physics.enable(this.player, Phaser.Physics.ARCADE);
+    this.player.speed = 300;
 
     this.enemy = this.add.sprite(400, 200, 'enemy-zero');
     this.enemy.animations.add('fly', [ 0, 1, 2 ], 20, true);
@@ -28,6 +35,8 @@ BasicGame.Game.prototype = {
     this.bullet.anchor.setTo(0.5,0.5);
     this.physics.enable(this.bullet, Phaser.Physics.ARCADE);
     this.bullet.body.velocity.y = -500;
+
+    this.cursors = this.input.keyboard.createCursorKeys();
   },
 
   update: function () {
@@ -62,6 +71,11 @@ BasicGame.Game.prototype = {
     var explosion = this.add.sprite(enemy.x,enemy.y, 'explosion');
     explosion.anchor.setTo(0.5, 0.5);
     explosion.animations.add('boom');
+
+      // 15 - set the frames per second
+      // false - don’t loop the animation
+      // true - kill the sprite at the end of the animation\
+      //IDEA: can make a heartbeat by setting third param to true
     explosion.play('boom', 15, false, true);
   } ,
 };
