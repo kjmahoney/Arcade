@@ -23,6 +23,7 @@ BasicGame.Game.prototype = {
     this.player.play('fly');
     this.physics.enable(this.player, Phaser.Physics.ARCADE);
     this.player.speed = 300;
+    this.player.body.collideWorldBounds = true;
 
     this.enemy = this.add.sprite(400, 200, 'enemy-zero');
     this.enemy.animations.add('fly', [ 0, 1, 2 ], 20, true);
@@ -31,10 +32,9 @@ BasicGame.Game.prototype = {
     //TODO is there a function that i can just make one big physics object? cluttery inline
     this.physics.enable(this.enemy, Phaser.Physics.ARCADE);
 
-    this.bullet = this.add.sprite(400,300,'bullet');
-    this.bullet.anchor.setTo(0.5,0.5);
-    this.physics.enable(this.bullet, Phaser.Physics.ARCADE);
-    this.bullet.body.velocity.y = -500;
+    this.bullets = [];
+    this.nextShotAt = 0;
+    this.shotDelay = 100;
 
     this.cursors = this.input.keyboard.createCursorKeys();
   },
@@ -42,10 +42,31 @@ BasicGame.Game.prototype = {
   update: function () {
     this.sea.tilePosition.y += .2;
 
-    this.physics.arcade.overlap(      this.bullet, this.enemy, this.enemyHit, null, this    );
+    for (var i = 0; i < this.bullets.length; i++) {      this.physics.arcade.overlap(        this.bullets[i], this.enemy, this.enemyHit, null, this      );    }
+    this.player.body.velocity.x = 0;
+    this.player.body.velocity.y = 0;
 
+    if (this.cursors.left.isDown) {
+      this.player.body.velocity.x = -this.player.speed;
+    } else if (this.cursors.right.isDown) {
+      this.player.body.velocity.x = this.player.speed;
+    }
 
+     if (this.cursors.up.isDown) {
+      this.player.body.velocity.y = -this.player.speed;
+    } else if (this.cursors.down.isDown) {
+      this.player.body.velocity.y = this.player.speed;
+    }
 
+    if (this.input.activePointer.isDown &&
+    this.physics.arcade.distanceToPointer(this.player) > 15) {
+        this.physics.arcade.moveToPointer(this.player, this.player.speed);
+    }
+
+    if (this.input.keyboard.isDown(Phaser.Keyboard.Z) ||
+        this.input.activePointer.isDown) {
+      this.fire();
+    }
   },
 
   render: function() {
@@ -78,4 +99,15 @@ BasicGame.Game.prototype = {
       //IDEA: can make a heartbeat by setting third param to true
     explosion.play('boom', 15, false, true);
   } ,
+
+  fire: function () {
+    if (this.nextShotAt > this.time.now) {
+      return;
+    }
+    this.nextShotAt = this.time.now + this.shotDelay;
+
+    var bullet = this.add.sprite(this.player.x, this.player.y - 20, 'bullet'); bullet.anchor.setTo(0.5, 0.5);
+    this.physics.enable(bullet, Phaser.Physics.ARCADE); bullet.body.velocity.y = -500;
+    this.bullets.push(bullet);
+  }
 };
