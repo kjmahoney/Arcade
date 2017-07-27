@@ -63,10 +63,16 @@ BasicGame.Game.prototype = {
     this.enemyPool.setAll('anchor.y', 0.5);
     this.enemyPool.setAll('outOfBoundsKill', true);
     this.enemyPool.setAll('checkWorldBounds', true);
+
     // Set the animation for each sprite
     this.enemyPool.forEach(function (enemy) {
-      enemy.animations.add('fly', [ 0, 1, 2 ], 20, true);
+      enemy.animations.add('fly', [0, 1, 2], 20, true);
+      enemy.animations.add('hit', [3, 1, 3, 2], 20, false);
+      enemy.events.onAnimationComplete.add( function(e) {
+        e.play('fly');
+      }, this);
     });
+
     this.nextEnemyAt = 0;
     this.enemyDelay = BasicGame.SPAWN_ENEMY_DELAY;
   },
@@ -132,7 +138,9 @@ BasicGame.Game.prototype = {
       this.nextEnemyAt = this.time.now + this.enemyDelay;
       var enemy = this.enemyPool.getFirstExists(false);
       // spawn at a random location top of the screen
-      enemy.reset(this.rnd.integerInRange(20, this.game.width - 20), 0);
+      enemy.reset(
+        this.rnd.integerInRange(20, this.game.width - 20), 0, BasicGame.ENEMY_HEALTH);
+
       // also randomize the speed
       enemy.body.velocity.y = this.rnd.integerInRange(BasicGame.ENEMY_MIN_Y_VELOCITY, BasicGame.ENEMY_MAX_Y_VELOCITY);
       enemy.play('fly');
@@ -183,13 +191,12 @@ BasicGame.Game.prototype = {
 
   enemyHit: function (bullet, enemy) {
     bullet.kill();
-    this.explode(enemy);
-    enemy.kill();
+    this.damageEnemy(enemy, BasicGame.BULLET_DAMAGE);
   } ,
 
   playerHit: function(player, enemy) {
-    this.explode(enemy);
-    enemy.kill();
+    // crashing into an enemy only deals 5 damage
+    this.damageEnemy(enemy, BasicGame.CRASH_DAMAGE);
     this.explode(player);
     player.kill();
   },
@@ -224,5 +231,15 @@ BasicGame.Game.prototype = {
     // add the original sprite's velocity to the explosion
     explosion.body.velocity.x = sprite.body.velocity.x;
     explosion.body.velocity.y = sprite.body.velocity.y;
+  },
+
+  damageEnemy(enemy, damage) {
+    enemy.damage(damage);
+
+    if (enemy.alive) {
+      enemy.play('hit');
+    } else {
+      this.explode(enemy);
+    }
   }
 };

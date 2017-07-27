@@ -1,1 +1,4 @@
 Add documentation to functions. The parameters are very unclear
+
+Ideas
+  Have a damage randomizer for critical hits
