@@ -15,16 +15,47 @@ BasicGame.Game.prototype = {
   },
 
   create: function () {
-    this.sea = this.add.tileSprite(0, 0, 800, 600, 'sea');
+    this.setupBackground();
+    this.setupPlayer();
+    this.setupEnemy();
+    this.setupBullets();
+    this.setupExplosions();
+    this.setupText();
 
-    this.player = this.add.sprite(400, 550, 'player');
+    this.cursors = this.input.keyboard.createCursorKeys();
+  },
+
+  update: function () {
+    this.sea.tilePosition.y += .2;
+    this.checkCollisions();
+    this.spawnEnemies();
+    this.processPlayerInput();
+    this.processDelayedEffects();
+  },
+
+  render: function() {
+    //uncomment when testing
+    // this.game.debug.body(this.player);
+  },
+
+  setupBackground() {
+    this.sea = this.add.tileSprite(0, 0, this.game.width, this.game.height, 'sea');
+    this.sea.autoScroll(0, BasicGame.SEA_SCROLL_SPEED);
+  },
+
+  setupPlayer() {
+    this.player = this.add.sprite(this.game.width / 2, this.game.height - 50, 'player');
     this.player.anchor.setTo(0.5, 0.5);
     this.player.animations.add('fly', [0,1,2], 20, true);
     this.player.play('fly');
     this.physics.enable(this.player, Phaser.Physics.ARCADE);
-    this.player.speed = 300;
+    this.player.speed = BasicGame.PLAYER_SPEED;
     this.player.body.collideWorldBounds = true;
+    // 20 x 20 pixel hitbox, centered a little bit higher than the center
+    this.player.body.setSize(20, 20, 23, 25);
+  },
 
+  setupEnemy() {
     this.enemyPool = this.add.group(); this.enemyPool.enableBody = true;
     this.enemyPool.physicsBodyType = Phaser.Physics.ARCADE;
     this.enemyPool.createMultiple(50, 'enemy-zero');
@@ -37,8 +68,10 @@ BasicGame.Game.prototype = {
       enemy.animations.add('fly', [ 0, 1, 2 ], 20, true);
     });
     this.nextEnemyAt = 0;
-    this.enemyDelay = 1000;
+    this.enemyDelay = BasicGame.SPAWN_ENEMY_DELAY;
+  },
 
+  setupBullets() {
     this.bulletPool = this.add.group();
     // Enable physics to the whole sprite group
     this.bulletPool.enableBody = true;
@@ -52,15 +85,62 @@ BasicGame.Game.prototype = {
     this.bulletPool.setAll('checkWorldBounds', true);
 
     this.nextShotAt = 0;
-    this.shotDelay = 100;
-
-    this.cursors = this.input.keyboard.createCursorKeys();
+    this.shotDelay = BasicGame.SHOT_DELAY;
   },
 
-  update: function () {
-    this.sea.tilePosition.y += .2;
+  setupExplosions() {
+    this.explosionPool = this.add.group();
+    this.explosionPool.enableBody = true;
+    this.explosionPool.physicsBodyType = Phaser.Physics.ARCADE;
+    this.explosionPool.createMultiple(100, 'explosion');
+    this.explosionPool.setAll('anchor.x', 0.5);
+    this.explosionPool.setAll('anchor.y', 0.5);
 
-    this.physics.arcade.overlap(      this.bulletPool, this.enemyPool, this.enemyHit, null, this    );    if (this.nextEnemyAt < this.time.now && this.enemyPool.countDead() > 0) {      this.nextEnemyAt = this.time.now + this.enemyDelay;      var enemy = this.enemyPool.getFirstExists(false);      // spawn at a random location top of the screen      enemy.reset(this.rnd.integerInRange(20, 780), 0);      // also randomize the speed      enemy.body.velocity.y = this.rnd.integerInRange(30, 60);      enemy.play('fly');    }    this.player.body.velocity.x = 0;
+    this.explosionPool.forEach(function (explosion) {
+      explosion.animations.add('boom');
+    });
+  },
+
+  setupText() {
+    this.instructions = this.add.text( this.game.width / 2, this.game.height -100,
+      'Use Arrow Keys to Move, Press Z to Fire\n' + 'Tapping/clicking does both',
+      { font: '20px monospace',
+        fill: '#fff',
+        align: 'center',
+        boundsAlignH: "top",
+        boundsAlignV:"top"
+      }
+    );
+    this.instructions.anchor.setTo(0.5, 0.5);
+    this.instExpire = this.time.now + BasicGame.INSTRUCTION_EXPIRE;
+  },
+
+//Update functions
+
+  checkCollisions() {
+    this.physics.arcade.overlap(
+      this.bulletPool, this.enemyPool, this.enemyHit, null, this
+    );
+
+    this.physics.arcade.overlap(
+      this.player, this.enemyPool, this.playerHit, null, this
+    );
+  },
+
+  spawnEnemies() {
+    if (this.nextEnemyAt < this.time.now && this.enemyPool.countDead() > 0) {
+      this.nextEnemyAt = this.time.now + this.enemyDelay;
+      var enemy = this.enemyPool.getFirstExists(false);
+      // spawn at a random location top of the screen
+      enemy.reset(this.rnd.integerInRange(20, this.game.width - 20), 0);
+      // also randomize the speed
+      enemy.body.velocity.y = this.rnd.integerInRange(BasicGame.ENEMY_MIN_Y_VELOCITY, BasicGame.ENEMY_MAX_Y_VELOCITY);
+      enemy.play('fly');
+    }
+  },
+
+  processPlayerInput() {
+    this.player.body.velocity.x = 0;
     this.player.body.velocity.y = 0;
 
     if (this.cursors.left.isDown) {
@@ -86,12 +166,11 @@ BasicGame.Game.prototype = {
     }
   },
 
-  render: function() {
-    //uncomment when testing
-    // this.game.debug.body(this.bullet);
-    // this.game.debug.body(this.enemy);
+  processDelayedEffects() {
+    if (this.instructions.exists && this.time.now > this.instExpire) {
+      this.instructions.destroy();
+    }
   },
-
 
   quitGame: function (pointer) {
 
@@ -103,22 +182,20 @@ BasicGame.Game.prototype = {
   },
 
   enemyHit: function (bullet, enemy) {
-    console.log('kev');
     bullet.kill();
+    this.explode(enemy);
     enemy.kill();
-    var explosion = this.add.sprite(enemy.x,enemy.y, 'explosion');
-    explosion.anchor.setTo(0.5, 0.5);
-    explosion.animations.add('boom');
-
-      // 15 - set the frames per second
-      // false - don’t loop the animation
-      // true - kill the sprite at the end of the animation\
-      //IDEA: can make a heartbeat by setting third param to true
-    explosion.play('boom', 15, false, true);
   } ,
 
+  playerHit: function(player, enemy) {
+    this.explode(enemy);
+    enemy.kill();
+    this.explode(player);
+    player.kill();
+  },
+
   fire: function () {
-    if (this.nextShotAt > this.time.now) {
+    if (!this.player.alive || this.nextShotAt > this.time.now) {
       return;
     }
 
@@ -132,6 +209,20 @@ BasicGame.Game.prototype = {
     var bullet = this.bulletPool.getFirstExists(false);
     // Reset (revive) the sprite and place it in a new location
     bullet.reset(this.player.x, this.player.y - 20);
-    bullet.body.velocity.y = -500;
+    bullet.body.velocity.y = -BasicGame.BULLET_VELOCITY;
+  },
+
+  explode: function (sprite) {
+    if (this.explosionPool.countDead() === 0) {
+      return;
+    }
+    var explosion = this.explosionPool.getFirstExists(false);
+    explosion.reset(sprite.x, sprite.y);
+    // 15 - set the frames per second// false - don’t loop the animation// true - kill the sprite at the end of the animation\
+    //IDEA: can make a heartbeat by setting third param to true
+    explosion.play('boom', 15, false, true);
+    // add the original sprite's velocity to the explosion
+    explosion.body.velocity.x = sprite.body.velocity.x;
+    explosion.body.velocity.y = sprite.body.velocity.y;
   }
 };

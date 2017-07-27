@@ -1,0 +1,1 @@
+Add documentation to functions. The parameters are very unclear
