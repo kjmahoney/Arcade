@@ -63,6 +63,7 @@ BasicGame.Game.prototype = {
     this.enemyPool.setAll('anchor.y', 0.5);
     this.enemyPool.setAll('outOfBoundsKill', true);
     this.enemyPool.setAll('checkWorldBounds', true);
+    this.enemyPool.setAll('reward', BasicGame.ENEMY_REWARD, false, false, 0, true);
 
     // Set the animation for each sprite
     this.enemyPool.forEach(function (enemy) {
@@ -119,6 +120,18 @@ BasicGame.Game.prototype = {
     );
     this.instructions.anchor.setTo(0.5, 0.5);
     this.instExpire = this.time.now + BasicGame.INSTRUCTION_EXPIRE;
+
+    this.score = 0;
+    this.scoreText = this.add.text(
+      this.game.width / 2, 30, ' ' + this.score,
+      { font: '20px monospace',
+        fill: '#fff',
+        align: 'center',
+        boundsAlignH: "top",
+        boundsAlignV:"top"
+      }
+    );
+    this.scoreText.anchor.setTo(0.5, 0.5);
   },
 
 //Update functions
@@ -192,7 +205,7 @@ BasicGame.Game.prototype = {
   enemyHit: function (bullet, enemy) {
     bullet.kill();
     this.damageEnemy(enemy, BasicGame.BULLET_DAMAGE);
-  } ,
+  },
 
   playerHit: function(player, enemy) {
     // crashing into an enemy only deals 5 damage
@@ -240,6 +253,12 @@ BasicGame.Game.prototype = {
       enemy.play('hit');
     } else {
       this.explode(enemy);
+      this.addToScore(enemy.reward);
     }
+  },
+
+  addToScore(score) {
+    this.score += score;
+    this.scoreText.text = this.score;
   }
 };
