@@ -6,6 +6,7 @@ BasicGame.Game = function (game) {
 BasicGame.Game.prototype = {
 
   preload: function () {
+    this.load.image('titlepage', 'assets/titlepage.png');
     //skipped preload state for dev so we load the file here
     this.load.image('sea', 'assets/sea.png');
     this.load.image('bullet', 'assets/bullet.png');
@@ -21,6 +22,7 @@ BasicGame.Game.prototype = {
     this.setupBullets();
     this.setupExplosions();
     this.setupText();
+    this.setupPlayerIcons();
 
     this.cursors = this.input.keyboard.createCursorKeys();
   },
@@ -134,6 +136,21 @@ BasicGame.Game.prototype = {
     this.scoreText.anchor.setTo(0.5, 0.5);
   },
 
+  setupPlayerIcons() {
+    this.lives = this.add.group();
+    var firstLifeIconX = this.game.width - 10 - (BasicGame.PLAYER_EXTRA_LIVES * 30);
+
+    for (var i = 0; i < BasicGame.PLAYER_EXTRA_LIVES; i++) {
+      var life = this.lives.create(firstLifeIconX + (30 * i), 30, 'player');
+      life.scale.setTo(0.5, 0.5);
+      life.anchor.setTo(0.5, 0.5);
+    }
+
+    this.player.animations.add('fly', [ 0, 1, 2 ], 20, true);
+    this.player.animations.add('ghost', [ 3, 0, 3, 1 ], 20, true);
+    this.player.play('fly');
+  },
+
 //Update functions
 
   checkCollisions() {
@@ -183,7 +200,12 @@ BasicGame.Game.prototype = {
 
     if (this.input.keyboard.isDown(Phaser.Keyboard.Z) ||
         this.input.activePointer.isDown) {
-      this.fire();
+
+        if (this.returnText && this.returnText.exists) {
+          this.quitGame();
+        } else {
+          this.fire();
+      }
     }
   },
 
@@ -191,12 +213,40 @@ BasicGame.Game.prototype = {
     if (this.instructions.exists && this.time.now > this.instExpire) {
       this.instructions.destroy();
     }
+
+    if (this.ghostUntil && this.ghostUntil < this.time.now) {
+      this.ghostUntil = null;
+      this.player.play('fly');
+    }
+
+     if (this.showReturn && this.time.now > this.showReturn) {
+           this.returnText = this.add.text(
+           this.game.width / 2, this.game.height / 2 + 20,
+          'Press Z or Tap Game to go back to Main Menu',
+             { font: '16px sans-serif',
+               fill: '#fff',
+               align: 'center',
+               boundsAlignH: "top",
+               boundsAlignV:"top"
+             }
+           );
+           this.returnText.anchor.setTo(0.5, 0.5);
+           this.showReturn = false;
+        }
   },
 
   quitGame: function (pointer) {
-
     //  Here you should destroy anything you no longer need.
     //  Stop music, delete sprites, purge caches, free resources, all that good stuff.
+    this.sea.destroy();
+    this.player.destroy();
+    this.enemyPool.destroy();
+    this.bulletPool.destroy();
+    this.explosionPool.destroy();
+    this.instructions.destroy();
+    this.scoreText.destroy();
+    this.endText.destroy();
+    this.returnText.destroy();
 
     //  Then let's go back to the main menu.
     this.state.start('MainMenu');
@@ -208,10 +258,42 @@ BasicGame.Game.prototype = {
   },
 
   playerHit: function(player, enemy) {
+    if (this.ghostUntil && this.ghostUntil > this.time.now) {
+      return;
+    }
+
     // crashing into an enemy only deals 5 damage
     this.damageEnemy(enemy, BasicGame.CRASH_DAMAGE);
-    this.explode(player);
-    player.kill();
+
+    var life = this.lives.getFirstAlive();
+    if (life !== null) {
+      life.kill();
+      this.ghostUntil = this.time.now + BasicGame.PLAYER_GHOST_TIME;
+      this.player.play('ghost');
+    } else {
+      this.explode(player);
+      player.kill();
+      this.displayEnd(false);
+    }
+  },
+
+  displayEnd: function (win) {
+    // you can't win and lose at the same time
+    if (this.endText && this.endText.exists) {
+    return;
+  }
+
+  var msg = win ? 'You Win!!!' : 'Game Over!'; this.endText = this.add.text(
+    this.game.width / 2, this.game.height / 2 - 60, msg,
+      { font: '72px serif',
+        fill: '#fff',
+        align: 'center',
+        boundsAlignH: "top",
+        boundsAlignV:"top"
+      }
+    );
+    this.endText.anchor.setTo(0.5, 0);
+    this.showReturn = this.time.now + BasicGame.RETURN_MESSAGE_DELAY;
   },
 
   fire: function () {
@@ -260,5 +342,9 @@ BasicGame.Game.prototype = {
   addToScore(score) {
     this.score += score;
     this.scoreText.text = this.score;
-  }
+    if (this.score >= 500) {
+      this.enemyPool.destroy();
+      this.displayEnd(true);
+    }
+  },
 };
