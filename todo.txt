@@ -4,3 +4,9 @@ Ideas
   Have a damage randomizer for critical hits
 
   scrolling message board detailing the lives of the pilots youve shot
+
+  add difficulty for volume of enemies to kill
+
+  survival timer? Then relief comes
+
+  morality meter deplete on super weapon
