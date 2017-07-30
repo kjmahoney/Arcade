@@ -28,6 +28,7 @@ BasicGame.Game.prototype = {
     this.setupText();
     this.setupPlayerIcons();
 
+    this.setupAudio();
     this.cursors = this.input.keyboard.createCursorKeys();
   },
 
@@ -416,6 +417,7 @@ BasicGame.Game.prototype = {
       this.player.play('ghost');
     } else {
       this.explode(player);
+      this.playerExplosionSFX.play();
       player.kill();
       this.displayEnd(false);
     }
@@ -446,6 +448,7 @@ BasicGame.Game.prototype = {
     }
 
     this.nextShotAt = this.time.now + this.shotDelay;
+    this.playerFireSFX.play();
     //using revive instead of making a new bullet everytime we shoot
 
     var bullet;
@@ -500,6 +503,7 @@ BasicGame.Game.prototype = {
       enemy.play('hit');
     } else {
       this.explode(enemy);
+      this.explosionSFX.play();
       this.spawnPowerUp(enemy);
       this.addToScore(enemy.reward);
       // We check the sprite key (e.g. 'greenEnemy') to see if the sprite is a boss
@@ -529,12 +533,14 @@ BasicGame.Game.prototype = {
         var bullet = this.enemyBulletPool.getFirstExists(false); bullet.reset(enemy.x, enemy.y);
         this.physics.arcade.moveToObject(bullet, this.player, BasicGame.ENEMY_BULLET_VELOCITY );
         enemy.nextShotAt = this.time.now + BasicGame.SHOOTER_SHOT_DELAY;
+        this.enemyFireSFX.play();
       }
     }, this);
 
     if (this.bossApproaching === false && this.boss.alive &&
         this.boss.nextShotAt < this.time.now && this.enemyBulletPool.countDead() >= 10) {
           this.boss.nextShotAt = this.time.now + BasicGame.BOSS_SHOT_DELAY;
+          this.enemyFireSFX.play();
           for (var i = 0; i < 5; i++) {
             // process 2 bullets at a time
             var leftBullet = this.enemyBulletPool.getFirstExists(false);
@@ -573,6 +579,7 @@ BasicGame.Game.prototype = {
   playerPowerUp: function (player, powerUp) {
     this.addToScore(powerUp.reward);
     powerUp.kill();
+    this.powerUpSFX.play();
     if (this.weaponLevel < 5) {
       this.weaponLevel++;
       }
@@ -584,4 +591,13 @@ BasicGame.Game.prototype = {
       this.boss.body.velocity.y = BasicGame.BOSS_Y_VELOCITY;
       this.boss.play('fly');
     },
+
+  setupAudio: function () {
+    this.sound.volume = 0.3;
+    this.explosionSFX = this.add.audio('explosion');
+    this.playerExplosionSFX = this.add.audio('playerExplosion');
+    this.enemyFireSFX = this.add.audio('enemyFire');
+    this.playerFireSFX = this.add.audio('playerFire');
+    this.powerUpSFX = this.add.audio('powerUp');
+},
   };
